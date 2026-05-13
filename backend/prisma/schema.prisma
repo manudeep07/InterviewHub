@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+
+  experiences   Experience[]
+  bookmarks     Bookmark[]
+  upvotes       Upvote[]
+  comments      Comment[]
+  notifications Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("SenderNotifications")
+}
+
+model Company {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  logo        String?
+  description String?
+  website     String?
+  createdAt   DateTime  @default(now())
+
+  jobRoles    JobRole[]
+}
+
+model JobRole {
+  id          Int      @id @default(autoincrement())
+  roleName    String
+  createdAt   DateTime @default(now())
+
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  experiences Experience[]
+}
+
+model Experience {
+  id                 Int        @id @default(autoincrement())
+  overallDifficulty  String
+  result             String
+  createdAt          DateTime   @default(now())
+
+  userId             Int
+  user               User       @relation(fields: [userId], references: [id])
+
+  jobRoleId          Int
+  jobRole            JobRole    @relation(fields: [jobRoleId], references: [id])
+
+  rounds             Round[]
+  bookmarks          Bookmark[]
+  upvotes            Upvote[]
+  comments           Comment[]
+  notifications      Notification[]
+}
+
+model Round {
+  id            Int         @id @default(autoincrement())
+
+  roundType     String
+  title         String?
+
+  questions     String[]
+  topics        String[]
+  difficulty    String?
+
+  experienceId  Int
+  experience    Experience  @relation(fields: [experienceId], references: [id])
+}
+
+model Bookmark {
+  id           Int        @id @default(autoincrement())
+  createdAt    DateTime   @default(now())
+  
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  
+  experienceId Int
+  experience   Experience @relation(fields: [experienceId], references: [id])
+
+  @@unique([userId, experienceId])
+}
+
+model Upvote {
+  id           Int        @id @default(autoincrement())
+  createdAt    DateTime   @default(now())
+  
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  
+  experienceId Int
+  experience   Experience @relation(fields: [experienceId], references: [id])
+
+  @@unique([userId, experienceId])
+}
+
+model Comment {
+  id           Int        @id @default(autoincrement())
+  content      String
+  createdAt    DateTime   @default(now())
+  
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  
+  experienceId Int
+  experience   Experience @relation(fields: [experienceId], references: [id])
+
+  parentId     Int?
+  parent       Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies      Comment[]  @relation("CommentReplies")
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String   // COMMENT, REPLY, UPVOTE, CHAT_INVITATION
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  userId      Int      // Recipient
+  user        User     @relation("UserNotifications", fields: [userId], references: [id])
+
+  senderId    Int?     // Actor
+  sender      User?    @relation("SenderNotifications", fields: [senderId], references: [id])
+
+  experienceId Int?    // Related entity
+  experience   Experience? @relation(fields: [experienceId], references: [id])
+}
