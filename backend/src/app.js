@@ -10,6 +10,8 @@ import engagementRouter from "./routes/engagementRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
+import chatRouter from "./routes/chatRoutes.js";
+import reportRouter from "./routes/reportRoutes.js";
 
 dotenv.config();
 
@@ -28,6 +30,8 @@ app.use('/engagement',engagementRouter);
 app.use('/user', userRouter);
 app.use('/admin', adminRouter);
 app.use('/notifications', notificationRouter);
+app.use('/chat', chatRouter);
+app.use('/reports', reportRouter);
 
 // sample route
 app.get("/", (req, res) => {

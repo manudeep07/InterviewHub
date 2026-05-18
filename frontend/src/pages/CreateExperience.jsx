@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -10,7 +10,8 @@ import {
   HelpCircle,
   FileText,
   Layout as LayoutIcon,
-  Send
+  Send,
+  Building2
 } from "lucide-react";
 import api from "../services/api";
 import Button from "../components/UI/Button";
@@ -20,14 +21,20 @@ import { cn } from "../utils/cn";
 
 function CreateExperiencePage() {
   const { roleId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const companyId = searchParams.get("companyId");
 
   const [roleInfo, setRoleInfo] = useState(null);
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [customRoleName, setCustomRoleName] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [result, setResult] = useState("");
   const [overallDifficulty, setOverallDifficulty] = useState("");
   const [rounds, setRounds] = useState([
     {
       roundType: "Technical",
+      customRoundType: "",
       title: "",
       difficulty: "Medium",
       questions: "",
@@ -38,25 +45,30 @@ function CreateExperiencePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRoleInfo = async () => {
-      if (!roleId) return;
+    const fetchData = async () => {
       try {
-        const response = await api.get(`/roles/${roleId}`);
-        setRoleInfo(response.data);
+        if (roleId === "new" && companyId) {
+          const res = await api.get(`/companies/${companyId}`);
+          setCompanyInfo(res.data);
+        } else if (roleId) {
+          const response = await api.get(`/roles/${roleId}`);
+          setRoleInfo(response.data);
+        }
       } catch (error) {
-        console.error("Failed to fetch role info:", error);
+        console.error("Failed to fetch info:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchRoleInfo();
-  }, [roleId]);
+    fetchData();
+  }, [roleId, companyId]);
 
   const handleAddRound = () => {
     setRounds([
       ...rounds,
       {
         roundType: "Technical",
+        customRoundType: "",
         title: "",
         difficulty: "Medium",
         questions: "",
@@ -78,29 +90,35 @@ function CreateExperiencePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!result || !overallDifficulty) return alert("Please fill all overview fields");
+    if (roleId === "new" && !customRoleName) return alert("Please enter the job role name");
     
     setIsSubmitting(true);
 
     try {
-      const processedRounds = rounds.map((round) => ({
-        ...round,
-        questions: round.questions
-          ? round.questions.split(",").map((q) => q.trim()).filter(Boolean)
+      const processedRounds = rounds.map(({ customRoundType, ...rest }) => ({
+        ...rest,
+        roundType: rest.roundType === "Other" ? customRoundType : rest.roundType,
+        questions: rest.questions
+          ? String(rest.questions).split(",").map((q) => q.trim()).filter(Boolean)
           : [],
-        topics: round.topics
-          ? round.topics.split(",").map((t) => t.trim()).filter(Boolean)
+        topics: rest.topics
+          ? String(rest.topics).split(",").map((t) => t.trim()).filter(Boolean)
           : [],
       }));
 
       const payload = {
         overallDifficulty,
         result,
-        jobRoleId: roleId,
+        jobRoleId: roleId === "new" ? "new" : roleId,
+        customRoleName: roleId === "new" ? customRoleName : undefined,
+        companyId: roleId === "new" ? companyId : undefined,
+        isAnonymous,
         rounds: processedRounds,
       };
 
-      await api.post("/experiences", payload);
-      navigate(`/get-experiences/${roleId}`);
+      const res = await api.post("/experiences", payload);
+      const targetId = roleId === "new" ? res.data.jobRoleId : roleId;
+      navigate(`/get-experiences/${targetId}`);
     } catch (error) {
       console.error(error);
       alert(error.response?.data?.message || "Failed to create experience");
@@ -109,30 +127,58 @@ function CreateExperiencePage() {
     }
   };
 
+  if (loading) return <div className="p-20 text-center font-bold">Loading...</div>;
+
   return (
     <div className="min-h-screen bg-muted/30 pb-20">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
-        <Link to="/companies" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-8 transition-colors font-medium">
+        <Link to={roleId === 'new' ? `/companies/${companyId}` : `/companies/${roleInfo?.companyId}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-8 transition-colors font-medium">
           <ArrowLeft size={16} /> Back to Roles
         </Link>
 
         <div className="mb-12">
           <h1 className="text-4xl font-bold font-outfit mb-3">Share Your Journey</h1>
-          {roleInfo && (
+          {(roleInfo || companyInfo) && (
             <div className="flex items-center gap-2 text-primary font-bold mb-3">
-              <span>{roleInfo.company.name}</span>
-              <ChevronRight size={16} className="text-muted-foreground" />
-              <span>{roleInfo.roleName}</span>
+              <Building2 size={18} />
+              <span>{roleInfo?.company.name || companyInfo?.name}</span>
+              {roleInfo && (
+                <>
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                  <span>{roleInfo.roleName}</span>
+                </>
+              )}
             </div>
           )}
           <p className="text-muted-foreground">Your insights can help thousands of candidates land their dream jobs. Be as detailed as possible.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-12">
+          {/* Step 0: Custom Role Name if needed */}
+          {roleId === "new" && (
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">0</div>
+                <h2 className="text-xl font-bold font-outfit">Job Role</h2>
+              </div>
+              <Card className="border-none shadow-md overflow-hidden">
+                <CardContent className="p-8">
+                  <Input
+                    label="What role did you interview for?"
+                    placeholder="e.g. Software Development Engineer, Product Manager"
+                    value={customRoleName}
+                    onChange={(e) => setCustomRoleName(e.target.value)}
+                    required
+                  />
+                </CardContent>
+              </Card>
+            </section>
+          )}
+
           {/* Step 1: Overview */}
           <section className="space-y-6">
             <div className="flex items-center gap-3 px-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">1</div>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">{roleId === 'new' ? '1' : '1'}</div>
               <h2 className="text-xl font-bold font-outfit">General Overview</h2>
             </div>
             <Card className="border-none shadow-md overflow-hidden">
@@ -167,6 +213,25 @@ function CreateExperiencePage() {
                     </select>
                   </div>
                 </div>
+
+                {/* Anonymous Toggle */}
+                <div className="mt-8 pt-8 border-t">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-dashed border-muted-foreground/20">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm">Post Anonymously</h4>
+                      <p className="text-xs text-muted-foreground">Your identity will be hidden from everyone except yourself.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={isAnonymous}
+                        onChange={(e) => setIsAnonymous(e.target.checked)}
+                      />
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </section>
@@ -175,7 +240,7 @@ function CreateExperiencePage() {
           <section className="space-y-6">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">2</div>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">{roleId === 'new' ? '2' : '2'}</div>
                 <h2 className="text-xl font-bold font-outfit">Detailed Rounds</h2>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={handleAddRound} className="gap-2">
@@ -228,7 +293,18 @@ function CreateExperiencePage() {
                               <option value="HR">HR</option>
                               <option value="GD">Group Discussion</option>
                               <option value="Assignment">Assignment</option>
+                              <option value="Other">Other</option>
                             </select>
+                            {round.roundType === "Other" && (
+                              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+                                <Input
+                                  placeholder="Enter custom round type..."
+                                  value={round.customRoundType}
+                                  onChange={(e) => handleRoundChange(index, "customRoundType", e.target.value)}
+                                  required
+                                />
+                              </motion.div>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-semibold">Round Difficulty</label>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MessageSquare, Reply, User as UserIcon, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import Button from "../UI/Button";
 import Card from "../UI/Card";
@@ -30,7 +31,7 @@ const CommentItem = ({ comment, allComments, onReply, experienceOwnerId, current
             "h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
             isOwner ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
           )}>
-            {comment.user.name.charAt(0).toUpperCase()}
+            {comment.user.id === null ? "?" : comment.user.name.charAt(0).toUpperCase()}
           </div>
           {replies.length > 0 && showReplies && (
             <div className="w-px grow bg-border my-2" />
@@ -116,8 +117,6 @@ const CommentItem = ({ comment, allComments, onReply, experienceOwnerId, current
     </div>
   );
 };
-
-import { motion } from "framer-motion";
 
 const CommentThread = ({ comments, onAddComment, experienceOwnerId, currentUser }) => {
   const [newComment, setNewComment] = useState("");

@@ -25,7 +25,23 @@ export const createCompany = async (req, res) => {
 // Get all companies
 export const getCompanies = async (req, res) => {
   try {
-    const companies = await prisma.company.findMany();
+    const { search } = req.query;
+    
+    const companies = await prisma.company.findMany({
+      where: search ? {
+        name: {
+          contains: search,
+          mode: 'insensitive'
+        }
+      } : {},
+      include: {
+        jobRoles: true
+      },
+      orderBy: {
+        name: 'asc'
+      },
+      take: search ? 10 : undefined // Limit results when searching for suggestions
+    });
 
     res.status(200).json(companies);
   } catch (error) {

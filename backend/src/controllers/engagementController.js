@@ -119,10 +119,12 @@ export const addComment = async (req, res) => {
     // Handle Notifications
     const experience = await prisma.experience.findUnique({
       where: { id: Number(id) },
-      select: { userId: true }
+      select: { userId: true, isAnonymous: true }
     });
 
     const commenter = await prisma.user.findUnique({ where: { id: Number(userId) }, select: { name: true } });
+    const isAnonymousAuthor = experience?.isAnonymous && Number(userId) === experience.userId;
+    const displayName = isAnonymousAuthor ? "The Author" : commenter.name;
 
     if (parentId) {
       // It's a reply
@@ -134,7 +136,7 @@ export const addComment = async (req, res) => {
         await createNotification(
           parentComment.userId,
           "REPLY",
-          `${commenter.name} replied to your comment`,
+          `${displayName} replied to your comment`,
           userId,
           Number(id)
         );
@@ -145,14 +147,28 @@ export const addComment = async (req, res) => {
         await createNotification(
           experience.userId,
           "COMMENT",
-          `${commenter.name} commented on your experience`,
+          `${displayName} commented on your experience`,
           userId,
           Number(id)
         );
       }
     }
 
-    res.status(201).json(comment);
+    // Check if we need to sanitize for anonymity
+    const experienceWithAnonymity = await prisma.experience.findUnique({
+      where: { id: Number(id) },
+      select: { isAnonymous: true, userId: true }
+    });
+
+    let sanitizedComment = comment;
+    if (experienceWithAnonymity?.isAnonymous && comment.userId === experienceWithAnonymity.userId) {
+      sanitizedComment = {
+        ...comment,
+        user: { id: null, name: "Author (Anonymous)" }
+      };
+    }
+
+    res.status(201).json(sanitizedComment);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

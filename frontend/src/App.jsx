@@ -14,7 +14,9 @@ import ExperienceDetailsPage from "./pages/ExperienceDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import BookmarksPage from "./pages/Bookmarks";
 import ProfilePage from "./pages/Profile";
+import DashboardPage from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import MessagesPage from "./pages/Messages";
 import Layout from "./components/Layout/Layout";
 import AdminRoute from "./components/AdminRoute";
 
@@ -32,7 +34,16 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route 
+          path="/" 
+          element={
+            user ? (
+              user.role === "ADMIN" ? <Navigate to="/admin" /> : <DashboardPage />
+            ) : (
+              <HomePage />
+            )
+          } 
+        />
         <Route 
           path="/login" 
           element={user ? <Navigate to="/" /> : <LoginPage />} 
@@ -51,6 +62,8 @@ function App() {
           <Route path="/create-experience/:roleId" element={<CreateExperiencePage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/messages" element={<MessagesPage />} />
         </Route>
 
         {/* Admin Routes */}

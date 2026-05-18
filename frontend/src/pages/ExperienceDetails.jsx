@@ -13,7 +13,9 @@ import {
   Share2,
   ChevronDown,
   ChevronUp,
-  Send
+  Send,
+  Flag,
+  X
 } from "lucide-react";
 import api from "../services/api";
 import AuthContext from "../context/AuthContext";
@@ -43,6 +45,9 @@ function ExperienceDetailsPage() {
   useEffect(() => {
     fetchExperience();
   }, [id, user]); // Refetch if user changes to check engagement
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
 
   const fetchExperience = async () => {
     try {
@@ -108,6 +113,20 @@ function ExperienceDetailsPage() {
       }));
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!user) return alert("Please login to report content");
+    if (!reportReason.trim()) return alert("Please provide a reason");
+    
+    try {
+      await api.post("/reports", { experienceId: id, reason: reportReason });
+      alert("Thank you for your report. Our moderators will review it shortly.");
+      setShowReportModal(false);
+      setReportReason("");
+    } catch (error) {
+      alert("Failed to submit report. Please try again.");
     }
   };
 
@@ -275,23 +294,67 @@ function ExperienceDetailsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
-                    {experience.user.name.charAt(0)}
+                    {experience.isAnonymous && experience.userId !== user?.id ? "?" : experience.user.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-bold">{experience.user.name}</p>
-                    <p className="text-xs text-muted-foreground">Active Contributor</p>
+                    {experience.isAnonymous && experience.userId !== user?.id ? (
+                      <p className="font-bold text-muted-foreground">Anonymous User</p>
+                    ) : (
+                      <Link to={`/profile/${experience.userId}`} className="font-bold hover:text-primary transition-colors block">
+                        {experience.user.name}
+                        {experience.isAnonymous && experience.userId === user?.id && (
+                          <span className="ml-2 text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground uppercase">You</span>
+                        )}
+                      </Link>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {experience.isAnonymous && experience.userId !== user?.id ? "Hidden Identity" : "Active Contributor"}
+                    </p>
                   </div>
                 </div>
-                <div className="pt-4 border-t space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Experiences Shared</span>
-                    <span className="font-bold">5+</span>
+                
+                {user && user.id !== experience.userId && (
+                  <Button 
+                    className="w-full gap-2" 
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await api.post("/chat/request", { receiverId: experience.userId });
+                        alert("Chat request sent!");
+                      } catch (err) {
+                        alert(err.response?.data?.message || "Failed to send request");
+                      }
+                    }}
+                  >
+                    <MessageSquare size={16} />
+                    Request Chat
+                  </Button>
+                )}
+
+                {(!experience.isAnonymous || experience.userId === user?.id) && (
+                  <div className="pt-4 border-t space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Experiences Shared</span>
+                      <span className="font-bold">{experience.user._count?.experiences || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Total Upvotes</span>
+                      <span className="font-bold text-emerald-600">{experience.user._count?.upvotes || 0}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Community Upvotes</span>
-                    <span className="font-bold text-emerald-600">120</span>
+                )}
+
+                {user && user.id !== experience.userId && (
+                  <div className="pt-6 mt-4 border-t">
+                    <button 
+                      onClick={() => setShowReportModal(true)}
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive transition-colors group"
+                    >
+                      <Flag size={14} className="group-hover:fill-destructive/10" />
+                      Report this experience
+                    </button>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -309,6 +372,54 @@ function ExperienceDetailsPage() {
 
         </div>
       </div>
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-background w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border"
+            >
+              <div className="px-8 py-6 border-b flex items-center justify-between bg-muted/20">
+                <h3 className="text-xl font-bold font-outfit">Report Experience</h3>
+                <button onClick={() => setShowReportModal(false)} className="text-muted-foreground hover:text-foreground">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-8 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Help us understand what's wrong with this experience. Your report is anonymous.
+                </p>
+                <textarea 
+                  className="w-full h-32 px-4 py-3 rounded-xl border bg-muted/20 focus:bg-background transition-all outline-none focus:ring-2 focus:ring-primary/20 resize-none text-sm"
+                  placeholder="Reason for reporting (e.g. misleading content, spam, inappropriate language)..."
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                />
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 h-12 font-bold"
+                    onClick={() => setShowReportModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="flex-1 h-12 font-bold"
+                    onClick={handleReport}
+                  >
+                    Submit Report
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

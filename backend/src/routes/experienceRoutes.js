@@ -6,14 +6,14 @@ import {
   getAllExperiences,
   searchExperiences
 } from "../controllers/experienceController.js";
-import { protectRoute } from "../middlewares/authMiddleware.js";
+import { protectRoute, optionalAuth } from "../middlewares/authMiddleware.js";
 
 const experienceRouter = Router();
 
-experienceRouter.get("/all", getAllExperiences);
-experienceRouter.get("/search", searchExperiences);
-experienceRouter.get("/role/:id", getExperiencesByRole);
-experienceRouter.get("/:id", getExperienceById);
+experienceRouter.get("/all", optionalAuth, getAllExperiences);
+experienceRouter.get("/search", optionalAuth, searchExperiences);
+experienceRouter.get("/role/:id", optionalAuth, getExperiencesByRole);
+experienceRouter.get("/:id", optionalAuth, getExperienceById);
 
 experienceRouter.post("/", protectRoute, createExperience);
 

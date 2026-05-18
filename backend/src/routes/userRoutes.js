@@ -1,10 +1,12 @@
 import express from "express";
-import { getProfile, getUserExperiences } from "../controllers/userController.js";
+import { getProfile, getPublicProfile, getUserExperiences, getDashboardData } from "../controllers/userController.js";
 import { protectRoute } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/profile", protectRoute, getProfile);
-router.get("/my-experiences", protectRoute, getUserExperiences);
+router.get("/profile/:id", protectRoute, getPublicProfile);
+router.get("/experiences/:id", protectRoute, getUserExperiences);
+router.get("/dashboard", protectRoute, getDashboardData);
 
 export default router;

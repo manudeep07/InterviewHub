@@ -11,10 +11,42 @@ import Skeleton from "../components/UI/Skeleton";
 
 const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isSearching, setIsSearching] = useState(false);
   const [recentExperiences, setRecentExperiences] = useState([]);
   const [featuredCompanies, setFeaturedCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (searchQuery.trim().length < 1) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const response = await api.get(`/companies?search=${searchQuery}`);
+        setSuggestions(response.data);
+        setShowSuggestions(true);
+        setSelectedIndex(-1);
+      } catch (error) {
+        console.error("Error fetching suggestions", error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      fetchSuggestions();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,9 +67,35 @@ const HomePage = () => {
   }, []);
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/get-experiences/all?q=${searchQuery}`);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionClick = (company) => {
+    setSearchQuery(company.name);
+    setShowSuggestions(false);
+    navigate(`/companies/${company.id}`);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggestions) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === "Enter") {
+      if (selectedIndex >= 0) {
+        e.preventDefault();
+        handleSuggestionClick(suggestions[selectedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
     }
   };
 
@@ -61,8 +119,8 @@ const HomePage = () => {
               Access real interview experiences from top tech companies. Learn the patterns, master the questions, and join the elite.
             </p>
 
-            <form onSubmit={handleSearch} className="max-w-2xl mx-auto relative group">
-              <div className="relative flex items-center">
+            <div className="max-w-2xl mx-auto relative group">
+              <form onSubmit={handleSearch} className="relative flex items-center z-50">
                 <Search className="absolute left-4 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
                 <input
                   type="text"
@@ -70,12 +128,50 @@ const HomePage = () => {
                   className="w-full h-16 pl-12 pr-32 rounded-2xl border-2 border-muted bg-background text-lg focus:border-primary focus:ring-0 transition-all outline-none shadow-sm group-hover:shadow-md"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 />
                 <Button type="submit" className="absolute right-2 h-12 px-8 rounded-xl">
                   Explore
                 </Button>
-              </div>
-            </form>
+              </form>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-2xl shadow-xl z-40 overflow-hidden"
+                >
+                  <div className="p-2">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground px-3 py-2">Companies</p>
+                    {suggestions.map((company, index) => (
+                      <div
+                        key={company.id}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors",
+                          selectedIndex === index ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                        )}
+                        onClick={() => handleSuggestionClick(company)}
+                        onMouseEnter={() => setSelectedIndex(index)}
+                      >
+                        <img src={company.logo} alt="" className="h-6 w-6 object-contain grayscale opacity-70" />
+                        <div className="flex flex-col text-left">
+                          <span className="font-semibold text-sm">{company.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Company</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-muted/50 p-3 text-center border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Press <kbd className="px-1 py-0.5 rounded border bg-background text-[10px]">Enter</kbd> to select
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </div>
 
             <div className="mt-12 flex items-center justify-center gap-8 text-sm text-muted-foreground font-medium">
               <div className="flex items-center gap-2">

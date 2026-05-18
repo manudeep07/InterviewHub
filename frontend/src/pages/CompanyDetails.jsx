@@ -112,6 +112,28 @@ function CompanyDetailsPage() {
                 </CardContent>
               </Card>
             ))}
+
+            {/* Other Role Option */}
+            <Card className="hover:border-primary/50 border-dashed transition-all group bg-muted/5">
+              <CardContent className="p-0">
+                <div className="flex items-center justify-between p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Plus size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold group-hover:text-primary transition-colors">Other Role</h3>
+                      <p className="text-xs text-muted-foreground font-medium">Can't find your role? Add it here.</p>
+                    </div>
+                  </div>
+                  <Link to={`/create-experience/new?companyId=${id}`}>
+                    <Button variant="outline" size="sm" className="gap-2 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all">
+                      Contribute <ArrowRight size={14} />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

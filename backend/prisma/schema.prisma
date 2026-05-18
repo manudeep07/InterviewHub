@@ -21,6 +21,12 @@ model User {
   comments      Comment[]
   notifications Notification[] @relation("UserNotifications")
   sentNotifications Notification[] @relation("SenderNotifications")
+
+  sentChats     Conversation[] @relation("Sender")
+  receivedChats Conversation[] @relation("Receiver")
+  messages      Message[]
+
+  reportsSent   Report[] @relation("Reporter")
 }
 
 model Company {
@@ -49,6 +55,7 @@ model Experience {
   id                 Int        @id @default(autoincrement())
   overallDifficulty  String
   result             String
+  status             String     @default("APPROVED") // PENDING, APPROVED, REMOVED
   createdAt          DateTime   @default(now())
 
   userId             Int
@@ -57,11 +64,14 @@ model Experience {
   jobRoleId          Int
   jobRole            JobRole    @relation(fields: [jobRoleId], references: [id])
 
+  isAnonymous        Boolean    @default(false)
+
   rounds             Round[]
   bookmarks          Bookmark[]
   upvotes            Upvote[]
   comments           Comment[]
   notifications      Notification[]
+  reports            Report[]
 }
 
 model Round {
@@ -120,9 +130,53 @@ model Comment {
   replies      Comment[]  @relation("CommentReplies")
 }
 
+model Report {
+  id           Int        @id @default(autoincrement())
+  reason       String
+  status       String     @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt    DateTime   @default(now())
+  
+  reporterId   Int
+  reporter     User       @relation("Reporter", fields: [reporterId], references: [id])
+  
+  experienceId Int
+  experience   Experience @relation(fields: [experienceId], references: [id])
+}
+
+enum ChatStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+model Conversation {
+  id            Int           @id @default(autoincrement())
+  senderId      Int
+  sender        User          @relation("Sender", fields: [senderId], references: [id])
+  receiverId    Int
+  receiver      User          @relation("Receiver", fields: [receiverId], references: [id])
+  status        ChatStatus    @default(PENDING)
+  messages      Message[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([senderId, receiverId])
+}
+
+model Message {
+  id              Int           @id @default(autoincrement())
+  conversationId  Int
+  conversation    Conversation  @relation(fields: [conversationId], references: [id])
+  senderId        Int
+  sender          User          @relation(fields: [senderId], references: [id])
+  content         String
+  createdAt       DateTime      @default(now())
+}
+
 model Notification {
   id          Int      @id @default(autoincrement())
-  type        String   // COMMENT, REPLY, UPVOTE, CHAT_INVITATION
+  type        String   // COMMENT, REPLY, UPVOTE, CHAT_REQUEST, CHAT_ACCEPTED, MODERATION
   content     String
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
