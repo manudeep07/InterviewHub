@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # -------------------------
+  # PostgreSQL Database Service
+  # -------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: interviewhub-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Manudeep@050607
+      POSTGRES_DB: interview_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d interview_hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------
+  # Node.js Backend Service
+  # -------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: interviewhub-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      # Use 'db' as the host instead of localhost because of Docker networking
+      - DATABASE_URL=postgresql://postgres:Manudeep%40050607@db:5432/interview_hub
+      - JWT_SECRET=myverysecretkey
+      - PORT=5000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # -------------------------
+  # React Frontend Service
+  # -------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # The browser needs to know where the backend is hosted on the host machine
+        - VITE_API_URL=http://localhost:5000
+    container_name: interviewhub-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+# -------------------------
+# Persistent Volumes
+# -------------------------
+volumes:
+  pgdata:
