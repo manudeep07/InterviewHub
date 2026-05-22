@@ -46,7 +46,7 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === "development" ? err : {},
   });
 });
-
+console.log("updated");
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
