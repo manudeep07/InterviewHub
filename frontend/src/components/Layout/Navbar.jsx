@@ -63,7 +63,7 @@ const Navbar = () => {
               <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
                 I
               </div>
-              <span className="text-xl font-bold tracking-tight font-outfit">InterviewHub</span>
+              <span className="text-xl font-bold tracking-tight font-outfit">Interview</span>
             </Link>
 
             <div className="hidden md:flex items-center space-x-1">
